@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 
+#[derive(Debug)]
 struct ElfDiet {
     total_calories: i64,
     badge: i32,
@@ -37,7 +38,10 @@ fn main() {
 
     println!("Top 3 Elves:");
     for i in 0..3 {
-        println!("  Elf {} with {}", diets[i].badge, diets[i].total_calories);
+        println!(
+            "  Elf {} with {} - {:?}",
+            diets[i].badge, diets[i].total_calories, diets[i]
+        );
     }
     println!(
         "Top 3 elves have a total of {} calories.",
