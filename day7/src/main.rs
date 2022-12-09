@@ -5,6 +5,7 @@ use std::fs;
 use std::rc::Rc;
 
 mod listing;
+use itertools::Itertools;
 use listing::InputLine;
 use std::collections::HashMap;
 
@@ -134,6 +135,27 @@ fn main() -> Result<(), &'static str> {
     println!(
         "Total size of dir with size at most 100000 is {}",
         tree.less_than_10000()
+    );
+
+    // Part B
+    const TOTAL_DISK_SPACE: usize = 70000000;
+    const UPDATE_SIZE: usize = 30000000;
+
+    let free_space = TOTAL_DISK_SPACE - tree.size();
+    let reclaim_min = UPDATE_SIZE - free_space;
+    println!("Free space is {free_space} - We need to reclaim {reclaim_min}");
+
+    let deletable = tree
+        .find_dirs()
+        .iter()
+        .filter_map(|d| if *d > reclaim_min { Some(d) } else { None })
+        .sorted()
+        .cloned()
+        .collect::<Vec<usize>>();
+
+    println!(
+        "Smallest deletable directory that will give enough space is {}",
+        deletable[0]
     );
 
     Ok(())
