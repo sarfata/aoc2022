@@ -1,8 +1,6 @@
-use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::num::ParseIntError;
-use std::result;
 
 #[derive(Debug)]
 struct Dock {
@@ -18,7 +16,7 @@ impl TryFrom<&str> for Dock {
         let count = lines[0].trim().split_whitespace().count();
 
         let mut stacks: Vec<Vec<char>> = Vec::new();
-        for i in 0..count {
+        for _ in 0..count {
             stacks.push(Vec::new());
         }
         for i in 1..lines.len() {
@@ -55,6 +53,7 @@ impl TryFrom<&str> for MoveOrder {
 
 impl Dock {
     // For first part of puzzle
+    #[allow(dead_code)]
     fn run9000(&mut self, m: &MoveOrder) -> Option<()> {
         for _c in 0..m.qty {
             let popped = self.stacks.get_mut(m.from - 1)?.pop()?;
