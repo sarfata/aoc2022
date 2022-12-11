@@ -22,44 +22,74 @@ impl TryFrom<&str> for Instruction {
     }
 }
 
-struct CPU {}
-impl CPU {
-    fn execute(pgm: Vec<Instruction>) -> i32 {
-        let mut reg_x = 1;
-        let mut cycle = 0;
-        let mut ix = 0;
+const CRT_WIDTH: usize = 40;
+const CRT_LINES: usize = 6;
 
-        let mut signal_strength = 0;
-
-        while ix < pgm.len() {
-            match pgm[ix] {
-                Instruction::Noop => {
-                    cycle += 1;
-                    ix += 1;
-
-                    if cycle == 20 || (cycle - 20) % 40 == 0 {
-                        signal_strength += cycle * reg_x;
-                    }
-                }
-                Instruction::AddX(a) => {
-                    cycle += 1;
-
-                    if cycle == 20 || (cycle - 20) % 40 == 0 {
-                        signal_strength += cycle * reg_x;
-                    }
-
-                    cycle += 1;
-
-                    if cycle == 20 || (cycle - 20) % 40 == 0 {
-                        signal_strength += cycle * reg_x;
-                    }
-
-                    reg_x = reg_x + a;
-                    ix += 1;
-                }
-            }
+struct CPU<'p> {
+    reg_x: i32,
+    cycle: usize,
+    pgm: &'p mut dyn Iterator<Item = Instruction>,
+    signal_strength: i32,
+    crt: [char; CRT_WIDTH * CRT_LINES],
+}
+impl<'a> CPU<'a> {
+    fn new(pgm: &'a mut dyn Iterator<Item = Instruction>) -> Self {
+        CPU {
+            pgm,
+            reg_x: 1,
+            cycle: 0,
+            signal_strength: 0,
+            crt: [' '; 240],
         }
-        signal_strength
+    }
+
+    fn run(&mut self) -> i32 {
+        while let Some(i) = self.pgm.next() {
+            println!(":: X={} Cycle={} I={i:?}", self.reg_x, self.cycle);
+            match i {
+                Instruction::Noop => self.i_noop(),
+                Instruction::AddX(x) => self.i_add(x),
+            }
+            self.display();
+            let mut _line = String::new();
+            // std::io::stdin()
+            //     .read_line(&mut _line)
+            //     .expect("Failed to read line");
+        }
+        self.signal_strength
+    }
+
+    fn display(&self) {
+        self.crt
+            .chunks(CRT_WIDTH)
+            .for_each(|line| println!("{}", line.iter().collect::<String>()));
+    }
+
+    fn i_noop(&mut self) {
+        self.cycle();
+    }
+
+    fn i_add(&mut self, x: i32) {
+        self.cycle();
+        self.cycle();
+        self.reg_x += x;
+    }
+
+    fn cycle(&mut self) {
+        // CRT Drawing
+        let visible_points = self.reg_x - 1..=self.reg_x + 1;
+        let cur_x = self.cycle % CRT_WIDTH;
+        let cur_y = (self.cycle / CRT_WIDTH) % CRT_LINES;
+        if visible_points.contains(&(cur_x as i32)) {
+            self.crt[cur_x + CRT_WIDTH * cur_y] = '#';
+        } else {
+            self.crt[cur_x + CRT_WIDTH * cur_y] = '.';
+        }
+
+        self.cycle += 1;
+        if self.cycle == 20 || (self.cycle > 20 && (self.cycle - 20) % 40 == 0) {
+            self.signal_strength += self.cycle as i32 * self.reg_x;
+        }
     }
 }
 
@@ -67,12 +97,18 @@ fn main() -> Result<(), &'static str> {
     let filepath = env::args().nth(1).unwrap_or(String::from("input"));
     let data = fs::read_to_string(filepath).map_err(|_| "Unable to read file")?;
 
-    let pgm: Vec<Instruction> = data.lines().filter_map(|l| l.try_into().ok()).collect();
-    println!(
-        "Executed {} instructions - signal_strength={}",
-        pgm.len(),
-        CPU::execute(pgm)
-    );
+    let mut pgm = data.lines().filter_map(|l| l.try_into().ok());
+    let mut cpu = CPU::new(&mut pgm);
+    println!("Executed program - signal_strength={}", cpu.run());
+    cpu.display();
 
     Ok(())
+}
+
+#[test]
+fn test_part_1() {
+    let data = include_str!("../input");
+    let mut pgm = data.lines().filter_map(|l| l.try_into().ok());
+    let mut cpu = CPU::new(&mut pgm);
+    assert_eq!(cpu.run(), 14920);
 }
