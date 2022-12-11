@@ -2,33 +2,43 @@ mod point;
 use point::*;
 
 struct Rope {
-    head: Point,
-    tail: Point,
+    knots: Vec<Point>,
     tail_history: VisitHistory,
 }
 
 impl Rope {
-    fn new() -> Self {
+    fn new(count_knots: usize, x: i32, y: i32) -> Self {
+        // This is my justification to do some unwrap on item 0 and last item later...
+        assert!(count_knots >= 2);
+
+        let mut knots = vec![];
+        for _ in 0..count_knots {
+            knots.push(Point::new(x, y));
+        }
         Rope {
-            head: Point::new(0, 0),
-            tail: Point::new(0, 0),
+            knots,
             tail_history: VisitHistory::new(),
         }
     }
+    fn record_tail_position(&mut self) {
+        self.tail_history.visit(*self.knots.last().unwrap());
+    }
+
     fn move_head(&mut self, m: Move) {
         println!("Move {m:?}");
 
         // Make sure we record this initial state
-        self.tail_history.visit(self.tail);
+        self.record_tail_position();
 
-        // We have to print upside down to make sure that +1 on y is UP.
+        // Execute the movement
         for _ in 0..m.1 {
-            self.head = &self.head + &m.0;
+            self.knots[0] = &self.knots[0] + &m.0;
+            // self.head = &self.head + &m.0;
 
-            self.adjust_tail();
+            self.adjust_knots();
 
             // And make sure we record this visit
-            self.tail_history.visit(self.tail);
+            self.record_tail_position();
         }
     }
 
@@ -61,32 +71,29 @@ impl Rope {
         }
     }
 
-    fn adjust_tail(&mut self) {
-        let mut v = self.tail.vec_to(&self.head);
+    fn adjust_knots(&mut self) {
+        // Walk through all the knots - Starting from the one behind the head
+        for i in 1..self.knots.len() {
+            let v: Vector = self.knots[i].vec_to(&self.knots[i - 1]);
 
-        loop {
-            // Get the next move and stop when not moving anymore
-            let m = Self::next_tail_move(&v);
-            if m == Vector(0, 0) {
-                break;
-            }
-            self.tail = self.tail + &m;
-
-            // Update the rope vector
-            v = self.tail.vec_to(&self.head);
+            self.knots[i] = self.knots[i] + &Self::next_tail_move(&v);
         }
     }
 
     fn print_world(&self) {
-        let w = 10;
-        let h = 10;
+        let w = 22;
+        let h = 22;
         for y in (0..h).rev() {
             for x in 0..w {
                 let p = Point::new(x, y);
-                if self.head == p {
-                    print!("H");
-                } else if self.tail == p {
-                    print!("T");
+                if let Some(p) = self.knots.iter().position(|&x| x == p) {
+                    if p == 0 {
+                        print!("H");
+                    } else if p == self.knots.len() - 1 {
+                        print!("T");
+                    } else {
+                        print!("{p}");
+                    }
                 } else {
                     print!(".");
                 }
@@ -98,6 +105,22 @@ impl Rope {
 
     fn tail_visits(&self) -> usize {
         self.tail_history.0.len()
+    }
+    fn print_visited(&self) {
+        let w = 100;
+        let h = 100;
+        for y in (0..h).rev() {
+            for x in 0..w {
+                let p = Point::new(x, y);
+                if self.tail_history.0.contains(&p) {
+                    print!("#");
+                } else {
+                    print!(".");
+                }
+            }
+            println!("");
+        }
+        println!("");
     }
 }
 
@@ -120,7 +143,7 @@ fn main() -> Result<(), &'static str> {
     let filepath = env::args().nth(1).unwrap_or(String::from("input"));
     let data = fs::read_to_string(filepath).map_err(|_| "Unable to read file")?;
 
-    let mut rope = Rope::new();
+    let mut rope = Rope::new(10, 11, 5);
 
     println!("Start:");
     rope.print_world();
@@ -133,6 +156,7 @@ fn main() -> Result<(), &'static str> {
     }
 
     println!("Visited {} boxes.", rope.tail_visits());
+    rope.print_visited();
 
     Ok(())
 }
